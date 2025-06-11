@@ -1,59 +1,41 @@
 const express = require('express');
 const puppeteer = require('puppeteer');
 const path = require('path');
+
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Configuração para servir arquivos estáticos
-app.use(express.static(path.join(__dirname, 'public')));
-app.use(express.json());
-
-// Rota para iniciar o navegador controlado
 let browser;
 let page;
 
-app.get('/init-browser', async (req, res) => {
-    try {
-        browser = await puppeteer.launch({
-            headless: false, // Modo headless desativado para visualização
-            args: ['--no-sandbox', '--disable-setuid-sandbox']
-        });
-        page = await browser.newPage();
-        await page.goto('https://rhbahia.ba.gov.br/');
-        
-        res.status(200).json({ 
-            status: 'success',
-            message: 'Navegador iniciado. Faça o login manualmente e depois volte para a aplicação.'
-        });
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
+app.use(express.static('public'));
+
+// Inicia o navegador e abre o site manualmente
+app.get('/abrir-login', async (req, res) => {
+  browser = await puppeteer.launch({
+    headless: false, // exibe o navegador (necessário para login manual)
+    args: ['--no-sandbox', '--disable-setuid-sandbox']
+  });
+
+  page = await browser.newPage();
+  await page.goto('https://rhbahia.ba.gov.br/');
+  res.send('Navegador aberto no servidor. Faça o login manual.');
 });
 
-// Rota para buscar PDFs
-app.post('/get-pdf', async (req, res) => {
-    const { matricula, ano, mes } = req.body;
-    
-    if (!page) {
-        return res.status(400).json({ error: 'Navegador não inicializado. Por favor, inicie o navegador primeiro.' });
-    }
+// Rota para obter um PDF autenticado (proxy)
+app.get('/pdf/:ano/:mes/:matricula', async (req, res) => {
+  const { ano, mes, matricula } = req.params;
 
-    try {
-        const url = `https://rhbahia.ba.gov.br/auditor/contracheque/file/pdf/${ano}/${mes}/1/${matricula}`;
-        await page.goto(url, { waitUntil: 'networkidle0' });
-        
-        // Verifica se o PDF foi carregado
-        const content = await page.content();
-        if (content.includes('PDF')) {
-            res.status(200).json({ url });
-        } else {
-            res.status(404).json({ error: 'PDF não encontrado' });
-        }
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
+  if (!page) return res.status(400).send('Login ainda não foi feito.');
+
+  const pdfUrl = `https://rhbahia.ba.gov.br/auditor/contracheque/file/pdf/${ano}/${mes}/1/${matricula}`;
+  const response = await page.goto(pdfUrl, { waitUntil: 'networkidle2' });
+
+  const buffer = await response.buffer();
+  res.contentType('application/pdf');
+  res.send(buffer);
 });
 
 app.listen(PORT, () => {
-    console.log(`Servidor rodando na porta ${PORT}`);
+  console.log(`Servidor rodando em http://localhost:${PORT}`);
 });
