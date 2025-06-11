@@ -1,17 +1,12 @@
 {
-  "name": "rhbahia-pdf-viewer",
+  "name": "pdf-proxy-server",
   "version": "1.0.0",
-  "description": "Visualizador de contracheques do RH Bahia",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "node server.js"
   },
   "dependencies": {
     "express": "^4.18.2",
-    "puppeteer": "^21.6.0"
-  },
-  "engines": {
-    "node": ">=16.0.0"
+    "puppeteer": "^21.3.8"
   }
 }
